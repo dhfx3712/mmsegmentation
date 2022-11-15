@@ -1,10 +1,10 @@
 _base_ = [
-    '../_base_/models/upernet_beit.py', '../_base_/datasets/ade20k_640x640.py',
+    '../_base_/models/upernet_beit.py', '../_base_/datasets/pascal_voc12_beit.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_160k.py'
 ]
 
 model = dict(
-    pretrained='pretrain/beit_base_patch16_224_pt22k_ft22k.pth',
+    pretrained='/Users/admin/Downloads/models/beit_base_patch16_224_pt22k_ft22k.pth',
     test_cfg=dict(mode='slide', crop_size=(640, 640), stride=(426, 426)))
 
 optimizer = dict(

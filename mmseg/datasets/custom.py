@@ -10,7 +10,7 @@ from prettytable import PrettyTable
 from torch.utils.data import Dataset
 
 from mmseg.core import eval_metrics, intersect_and_union, pre_eval_to_metrics
-from mmseg.utils import get_root_logger
+from mmseg.utils import get_root_logger,Log_debug
 from .builder import DATASETS
 from .pipelines import Compose, LoadAnnotations
 
@@ -129,7 +129,7 @@ class CustomDataset(Dataset):
         self.img_infos = self.load_annotations(self.img_dir, self.img_suffix,
                                                self.ann_dir,
                                                self.seg_map_suffix, self.split)
-
+        Log_debug.info(f'CustomDataset : paramer {self.__dict__} ')
     def __len__(self):
         """Total number of samples of data."""
         return len(self.img_infos)
@@ -169,7 +169,7 @@ class CustomDataset(Dataset):
                     suffix=img_suffix,
                     recursive=True):
                 img_info = dict(filename=img)
-                if ann_dir is not None:
+                if ann_dir is not None:#替换了文件后缀类型
                     seg_map = img.replace(img_suffix, seg_map_suffix)
                     img_info['ann'] = dict(seg_map=seg_map)
                 img_infos.append(img_info)

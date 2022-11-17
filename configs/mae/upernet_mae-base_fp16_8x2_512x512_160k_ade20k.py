@@ -1,10 +1,10 @@
 _base_ = [
-    '../_base_/models/upernet_mae.py', '../_base_/datasets/ade20k.py',
+    '../_base_/models/upernet_mae.py', '../_base_/datasets/pascal_voc12.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_160k.py'
 ]
 
 model = dict(
-    pretrained='./pretrain/mae_pretrain_vit_base_mmcls.pth',
+    pretrained='/Users/admin/Downloads/models/mae_pretrain_vit_base.pth',
     backbone=dict(
         type='MAE',
         img_size=(512, 512),

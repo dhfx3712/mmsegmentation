@@ -7,7 +7,7 @@ from mmseg.ops import resize
 from ..builder import HEADS
 from .decode_head import BaseDecodeHead
 from .psp_head import PPM
-
+from mmseg.utils import Log_debug
 
 @HEADS.register_module()
 class UPerHead(BaseDecodeHead):
@@ -22,6 +22,7 @@ class UPerHead(BaseDecodeHead):
     """
 
     def __init__(self, pool_scales=(1, 2, 3, 6), **kwargs):
+        Log_debug.info (f'decode_head : UPerHead_self_paramer {kwargs}')
         super(UPerHead, self).__init__(
             input_transform='multiple_select', **kwargs)
         # PSP Module
@@ -79,9 +80,11 @@ class UPerHead(BaseDecodeHead):
         x = inputs[-1]
         psp_outs = [x]
         psp_outs.extend(self.psp_modules(x))
+        Log_debug.info (f'decode_head_laterals_psp : {[i.shape for i in psp_outs]}')
         psp_outs = torch.cat(psp_outs, dim=1)
+        Log_debug.info(f'decode_head_laterals_psp_cat : {psp_outs.shape}')
         output = self.bottleneck(psp_outs)
-
+        Log_debug.info(f'decode_head_psp_out : {output.shape}')
         return output
 
     def _forward_feature(self, inputs):
@@ -102,7 +105,7 @@ class UPerHead(BaseDecodeHead):
             lateral_conv(inputs[i])
             for i, lateral_conv in enumerate(self.lateral_convs)
         ]
-
+        Log_debug.info (f'decode_head : laterals {[i.shape for i in laterals]}')
         laterals.append(self.psp_forward(inputs))
 
         # build top-down path

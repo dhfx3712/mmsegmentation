@@ -2,6 +2,7 @@
 import argparse
 import copy
 import os
+os.environ['CUDA_VISIBLE_DEVICES']='-1'
 import os.path as osp
 import time
 import warnings
@@ -12,12 +13,13 @@ import torch.distributed as dist
 from mmcv.cnn.utils import revert_sync_batchnorm
 from mmcv.runner import get_dist_info, init_dist
 from mmcv.utils import Config, DictAction, get_git_hash
-
+import sys
+sys.path.append('/Users/admin/data/test_project/mmsegmentation')
 from mmseg import __version__
 from mmseg.apis import init_random_seed, set_random_seed, train_segmentor
 from mmseg.datasets import build_dataset
 from mmseg.models import build_segmentor
-from mmseg.utils import (collect_env, get_device, get_root_logger,
+from mmseg.utils import (collect_env, get_device, get_root_logger,Log_debug,
                          setup_multi_processes)
 
 
@@ -228,6 +230,7 @@ def main():
     model.CLASSES = datasets[0].CLASSES
     # passing checkpoint meta for saving best checkpoint
     meta.update(cfg.checkpoint_config.meta)
+    Log_debug.info(f'cfg : {cfg}')
     train_segmentor(
         model,
         datasets,

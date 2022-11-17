@@ -8,7 +8,7 @@ from mmseg.ops import resize
 from .. import builder
 from ..builder import SEGMENTORS
 from .base import BaseSegmentor
-
+from mmseg.utils import Log_debug
 
 @SEGMENTORS.register_module()
 class EncoderDecoder(BaseSegmentor):
@@ -64,8 +64,10 @@ class EncoderDecoder(BaseSegmentor):
     def extract_feat(self, img):
         """Extract features from images."""
         x = self.backbone(img)
+        Log_debug.info (f'encode_decode_backbone_beit : {len(x)}')
         if self.with_neck:
             x = self.neck(x)
+            Log_debug.info(f'encode_decode_neck : {len(x)}')
         return x
 
     def encode_decode(self, img, img_metas):
@@ -138,6 +140,7 @@ class EncoderDecoder(BaseSegmentor):
         """
 
         x = self.extract_feat(img)
+        Log_debug.info (f'encode_decode : img {img.shape} ')
 
         losses = dict()
 

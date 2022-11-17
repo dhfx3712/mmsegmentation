@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from mmcv.cnn import build_conv_layer, build_norm_layer
 from mmcv.runner.base_module import BaseModule
 from mmcv.utils import to_2tuple
-
+from mmseg.utils import Log_debug
 
 class AdaptivePadding(nn.Module):
     """Applies padding to input (if needed) so that input can get fully covered
@@ -45,11 +45,11 @@ class AdaptivePadding(nn.Module):
         super(AdaptivePadding, self).__init__()
 
         assert padding in ('same', 'corner')
-
+        Log_debug.info(f'beit_patch : adaptivepadding_input  {kernel_size},{stride},{dilation}')
         kernel_size = to_2tuple(kernel_size)
         stride = to_2tuple(stride)
         dilation = to_2tuple(dilation)
-
+        Log_debug.info (f'beit_patch : adaptivepadding_2tuple  {kernel_size},{stride},{dilation}')
         self.padding = padding
         self.kernel_size = kernel_size
         self.stride = stride
@@ -151,7 +151,7 @@ class PatchEmbed(BaseModule):
             padding=padding,
             dilation=dilation,
             bias=bias)
-
+        Log_debug.info(f'beit_patch_projection  : {self.projection}')
         if norm_cfg is not None:
             self.norm = build_norm_layer(norm_cfg, embed_dims)[1]
         else:
@@ -192,11 +192,12 @@ class PatchEmbed(BaseModule):
                 - out_size (tuple[int]): Spatial shape of x, arrange as
                     (out_h, out_w).
         """
-
+        Log_debug.info (f'beit_patch_input : x {x.shape}')
         if self.adap_padding:
             x = self.adap_padding(x)
-
+        Log_debug.info(f'beit_patch_adap : x {x.shape}')
         x = self.projection(x)
+        Log_debug.info(f'beit_patch_projection : x {x.shape}')
         out_size = (x.shape[2], x.shape[3])
         x = x.flatten(2).transpose(1, 2)
         if self.norm is not None:

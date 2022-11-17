@@ -5,7 +5,7 @@ from mmcv.cnn import ConvModule
 
 from ..builder import HEADS
 from .decode_head import BaseDecodeHead
-
+from mmseg.utils import Log_debug
 
 @HEADS.register_module()
 class FCNHead(BaseDecodeHead):
@@ -76,13 +76,17 @@ class FCNHead(BaseDecodeHead):
                 H, W) which is feature map for last layer of decoder head.
         """
         x = self._transform_inputs(inputs)
+        Log_debug.info (f'fcn_head : input : {len(inputs)},{[i.shape for i in inputs]}')
         feats = self.convs(x)
+        Log_debug.info (f'fcn_convs : {feats.shape}')
         if self.concat_input:
             feats = self.conv_cat(torch.cat([x, feats], dim=1))
+        Log_debug.info(f'fcn_conv_cat : {feats.shape}')
         return feats
 
     def forward(self, inputs):
         """Forward function."""
         output = self._forward_feature(inputs)
+        #BaseDecodeHead-->cls_seg .self.conv_seg = nn.Conv2d(channels, self.out_channels, kernel_size=1)
         output = self.cls_seg(output)
         return output

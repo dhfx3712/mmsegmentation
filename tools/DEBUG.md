@@ -464,9 +464,40 @@ tools/train.py:207: UserWarning: SyncBN is only supported with DDP. To be compat
 
 
 
+torch.expand(-1, -1)的理解
+在expand中的-1表示取当前所在维度的尺寸，也就是表示当前维度不变。
+在代码中 一般用这方法解决不想手动计算维度的时候
+
+import torch
+x = torch.Tensor([[1], [2], [3]])
+x0 = x.size(0)  # 取x第一维的尺寸，x0 = 3
+x1 = x.expand(-1, 2)
+x2 = x.expand(3, 2)
+
+输出
+x0 =  3
+x1 =  tensor([[1., 1.],
+        [2., 2.],
+        [3., 3.]])
+x2 =  tensor([[1., 1.],
+        [2., 2.],
+        [3., 3.]])
+
+
+
+
 (mmsegmentation) admin@bogon mmsegmentation % python tools/train.py configs/deeplabv3/deeplabv3_r50-d8_512x512_20k_voc12aug.py
 
+
 model
+mmseg/models/segmentors/encoder_decoder.py-->EncoderDecoder
+1、pretrain
+2、backbone
+3、_init_decode_head
+4、_init_auxiliary_head
+5、train_cfg
+
+
 backbone 
 mmseg/models/backbones/resnet.py-->ResNetV1c
 
@@ -474,8 +505,83 @@ mmseg/models/backbones/resnet.py-->ResNetV1c
 
 
 
+
 beit 图片的尺寸会有影响
 (mmsegmentation) admin@bogon mmsegmentation % python tools/train.py configs/beit/upernet_beit-base_8x2_640x640_160k_ade20k.py
+
+EncoderDecoder
+1、backbone -->beit
+    patch
+    layer-->BEiTTransformerEncoderLayer
+        self.attn
+        self.ffn(cfg)
+            mmseg/models/backbones/vit.py
+            ffn_cfg.update(
+                dict(
+                embed_dims=embed_dims,
+                feedforward_channels=feedforward_channels,
+                num_fcs=num_fcs,#全联接层
+                ffn_drop=drop_rate,
+                dropout_layer=dict(type='DropPath', drop_prob=drop_path_rate)
+                if drop_path_rate > 0 else None,
+                act_cfg=act_cfg))
+
+
+
+decode_head
+mmseg/models/decode_heads/uper_head.py
+UPerHead--(multiple_select)
+self._forward_feature(inputs)
+    decode_head : UPerHead_self_paramer {'in_channels': [768, 768, 768, 768], 'in_index': [0, 1, 2, 3], 'channels': 768, 'dropout_ratio': 0.1, 'num_classes': 150, 'norm_cfg': {'type': 'SyncBN', 'requires_grad': True}, 'align_corners': False, 'loss_decode': {'type': 'CrossEntropyLoss', 'use_sigmoid': False, 'loss_weight': 1.0}}
+    1、self._transform_inputs
+    2、build_laterals + psp_modules
+    3、fpn_outs--resize到同一个尺寸，cat
+    4、fpn_bottleneck(fpn_outs)
+self.cls_seg(output)
+    self.conv_seg = nn.Conv2d(channels, self.out_channels, kernel_size=1)  self.out_channels即class
+    
+
+auxiliary_head(可以是列表)
+self._init_auxiliary_head(auxiliary_head) fcn全联接
+
+
+
+
+
+beit_patch_input : x torch.Size([2, 3, 640, 640])
+beit_patch_adap : x torch.Size([2, 3, 640, 640])
+beit_patch_projection : x torch.Size([2, 768, 40, 40]) cfg dim 768
+beit_input : inputs torch.Size([2, 3, 640, 640]) ,path_out_x torch.Size([2, 1600, 768]) , path_out_hw (40, 40)
+beit_expand : x torch.Size([2, 1601, 768])
+beit_out : [torch.Size([2, 768, 40, 40]), torch.Size([2, 768, 40, 40]), torch.Size([2, 768, 40, 40]), torch.Size([2, 768, 40, 40])]
+
+encode_decode : img torch.Size([2, 3, 640, 640]) 
+decode_head : laterals [torch.Size([2, 768, 160, 160]), torch.Size([2, 768, 80, 80]), torch.Size([2, 768, 40, 40])]
+decode_head_laterals_psp : [torch.Size([2, 768, 20, 20]), torch.Size([2, 768, 20, 20]), torch.Size([2, 768, 20, 20]), torch.Size([2, 768, 20, 20]), torch.Size([2, 768, 20, 20])]
+decode_head_laterals_psp_cat : torch.Size([2, 3840, 20, 20])
+decode_head_psp_out : torch.Size([2, 768, 20, 20])
+
+
+
+beit_
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -496,3 +602,313 @@ mae
 batchsize=1的情况
 Expected more than 1 value per channel when training, got input size torch.Size([1, 256, 1, 1])
 https://blog.csdn.net/hjxu2016/article/details/121075723
+
+
+
+
+
+Logger模块 log_level=logging.INFO print输出改为Logger输出，记录不同级别的信息
+Log_debug = get_root_logger('./debug.log',log_level=logging.ERROR)
+
+
+
+
+
+
+
+
+
+beit : self.layers ModuleList(
+  (0): BEiTTransformerEncoderLayer(
+    (ln1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (attn): BEiTAttention(
+      (qkv): Linear(in_features=768, out_features=2304, bias=False)
+      (attn_drop): Dropout(p=0.0, inplace=False)
+      (proj): Linear(in_features=768, out_features=768, bias=True)
+      (proj_drop): Dropout(p=0.0, inplace=False)
+    )
+    (ln2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (ffn): FFN(
+      (activate): GELU()
+      (layers): Sequential(
+        (0): Sequential(
+          (0): Linear(in_features=768, out_features=3072, bias=True)
+          (1): GELU()
+          (2): Dropout(p=0.0, inplace=False)
+        )
+        (1): Linear(in_features=3072, out_features=768, bias=True)
+        (2): Dropout(p=0.0, inplace=False)
+      )
+      (dropout_layer): Identity()
+    )
+    (drop_path): DropPath()
+  )
+  (1): BEiTTransformerEncoderLayer(
+    (ln1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (attn): BEiTAttention(
+      (qkv): Linear(in_features=768, out_features=2304, bias=False)
+      (attn_drop): Dropout(p=0.0, inplace=False)
+      (proj): Linear(in_features=768, out_features=768, bias=True)
+      (proj_drop): Dropout(p=0.0, inplace=False)
+    )
+    (ln2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (ffn): FFN(
+      (activate): GELU()
+      (layers): Sequential(
+        (0): Sequential(
+          (0): Linear(in_features=768, out_features=3072, bias=True)
+          (1): GELU()
+          (2): Dropout(p=0.0, inplace=False)
+        )
+        (1): Linear(in_features=3072, out_features=768, bias=True)
+        (2): Dropout(p=0.0, inplace=False)
+      )
+      (dropout_layer): Identity()
+    )
+    (drop_path): DropPath()
+  )
+  (2): BEiTTransformerEncoderLayer(
+    (ln1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (attn): BEiTAttention(
+      (qkv): Linear(in_features=768, out_features=2304, bias=False)
+      (attn_drop): Dropout(p=0.0, inplace=False)
+      (proj): Linear(in_features=768, out_features=768, bias=True)
+      (proj_drop): Dropout(p=0.0, inplace=False)
+    )
+    (ln2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (ffn): FFN(
+      (activate): GELU()
+      (layers): Sequential(
+        (0): Sequential(
+          (0): Linear(in_features=768, out_features=3072, bias=True)
+          (1): GELU()
+          (2): Dropout(p=0.0, inplace=False)
+        )
+        (1): Linear(in_features=3072, out_features=768, bias=True)
+        (2): Dropout(p=0.0, inplace=False)
+      )
+      (dropout_layer): Identity()
+    )
+    (drop_path): DropPath()
+  )
+  (3): BEiTTransformerEncoderLayer(
+    (ln1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (attn): BEiTAttention(
+      (qkv): Linear(in_features=768, out_features=2304, bias=False)
+      (attn_drop): Dropout(p=0.0, inplace=False)
+      (proj): Linear(in_features=768, out_features=768, bias=True)
+      (proj_drop): Dropout(p=0.0, inplace=False)
+    )
+    (ln2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (ffn): FFN(
+      (activate): GELU()
+      (layers): Sequential(
+        (0): Sequential(
+          (0): Linear(in_features=768, out_features=3072, bias=True)
+          (1): GELU()
+          (2): Dropout(p=0.0, inplace=False)
+        )
+        (1): Linear(in_features=3072, out_features=768, bias=True)
+        (2): Dropout(p=0.0, inplace=False)
+      )
+      (dropout_layer): Identity()
+    )
+    (drop_path): DropPath()
+  )
+  (4): BEiTTransformerEncoderLayer(
+    (ln1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (attn): BEiTAttention(
+      (qkv): Linear(in_features=768, out_features=2304, bias=False)
+      (attn_drop): Dropout(p=0.0, inplace=False)
+      (proj): Linear(in_features=768, out_features=768, bias=True)
+      (proj_drop): Dropout(p=0.0, inplace=False)
+    )
+    (ln2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (ffn): FFN(
+      (activate): GELU()
+      (layers): Sequential(
+        (0): Sequential(
+          (0): Linear(in_features=768, out_features=3072, bias=True)
+          (1): GELU()
+          (2): Dropout(p=0.0, inplace=False)
+        )
+        (1): Linear(in_features=3072, out_features=768, bias=True)
+        (2): Dropout(p=0.0, inplace=False)
+      )
+      (dropout_layer): Identity()
+    )
+    (drop_path): DropPath()
+  )
+  (5): BEiTTransformerEncoderLayer(
+    (ln1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (attn): BEiTAttention(
+      (qkv): Linear(in_features=768, out_features=2304, bias=False)
+      (attn_drop): Dropout(p=0.0, inplace=False)
+      (proj): Linear(in_features=768, out_features=768, bias=True)
+      (proj_drop): Dropout(p=0.0, inplace=False)
+    )
+    (ln2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (ffn): FFN(
+      (activate): GELU()
+      (layers): Sequential(
+        (0): Sequential(
+          (0): Linear(in_features=768, out_features=3072, bias=True)
+          (1): GELU()
+          (2): Dropout(p=0.0, inplace=False)
+        )
+        (1): Linear(in_features=3072, out_features=768, bias=True)
+        (2): Dropout(p=0.0, inplace=False)
+      )
+      (dropout_layer): Identity()
+    )
+    (drop_path): DropPath()
+  )
+  (6): BEiTTransformerEncoderLayer(
+    (ln1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (attn): BEiTAttention(
+      (qkv): Linear(in_features=768, out_features=2304, bias=False)
+      (attn_drop): Dropout(p=0.0, inplace=False)
+      (proj): Linear(in_features=768, out_features=768, bias=True)
+      (proj_drop): Dropout(p=0.0, inplace=False)
+    )
+    (ln2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (ffn): FFN(
+      (activate): GELU()
+      (layers): Sequential(
+        (0): Sequential(
+          (0): Linear(in_features=768, out_features=3072, bias=True)
+          (1): GELU()
+          (2): Dropout(p=0.0, inplace=False)
+        )
+        (1): Linear(in_features=3072, out_features=768, bias=True)
+        (2): Dropout(p=0.0, inplace=False)
+      )
+      (dropout_layer): Identity()
+    )
+    (drop_path): DropPath()
+  )
+  (7): BEiTTransformerEncoderLayer(
+    (ln1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (attn): BEiTAttention(
+      (qkv): Linear(in_features=768, out_features=2304, bias=False)
+      (attn_drop): Dropout(p=0.0, inplace=False)
+      (proj): Linear(in_features=768, out_features=768, bias=True)
+      (proj_drop): Dropout(p=0.0, inplace=False)
+    )
+    (ln2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (ffn): FFN(
+      (activate): GELU()
+      (layers): Sequential(
+        (0): Sequential(
+          (0): Linear(in_features=768, out_features=3072, bias=True)
+          (1): GELU()
+          (2): Dropout(p=0.0, inplace=False)
+        )
+        (1): Linear(in_features=3072, out_features=768, bias=True)
+        (2): Dropout(p=0.0, inplace=False)
+      )
+      (dropout_layer): Identity()
+    )
+    (drop_path): DropPath()
+  )
+  (8): BEiTTransformerEncoderLayer(
+    (ln1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (attn): BEiTAttention(
+      (qkv): Linear(in_features=768, out_features=2304, bias=False)
+      (attn_drop): Dropout(p=0.0, inplace=False)
+      (proj): Linear(in_features=768, out_features=768, bias=True)
+      (proj_drop): Dropout(p=0.0, inplace=False)
+    )
+    (ln2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (ffn): FFN(
+      (activate): GELU()
+      (layers): Sequential(
+        (0): Sequential(
+          (0): Linear(in_features=768, out_features=3072, bias=True)
+          (1): GELU()
+          (2): Dropout(p=0.0, inplace=False)
+        )
+        (1): Linear(in_features=3072, out_features=768, bias=True)
+        (2): Dropout(p=0.0, inplace=False)
+      )
+      (dropout_layer): Identity()
+    )
+    (drop_path): DropPath()
+  )
+  (9): BEiTTransformerEncoderLayer(
+    (ln1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (attn): BEiTAttention(
+      (qkv): Linear(in_features=768, out_features=2304, bias=False)
+      (attn_drop): Dropout(p=0.0, inplace=False)
+      (proj): Linear(in_features=768, out_features=768, bias=True)
+      (proj_drop): Dropout(p=0.0, inplace=False)
+    )
+    (ln2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (ffn): FFN(
+      (activate): GELU()
+      (layers): Sequential(
+        (0): Sequential(
+          (0): Linear(in_features=768, out_features=3072, bias=True)
+          (1): GELU()
+          (2): Dropout(p=0.0, inplace=False)
+        )
+        (1): Linear(in_features=3072, out_features=768, bias=True)
+        (2): Dropout(p=0.0, inplace=False)
+      )
+      (dropout_layer): Identity()
+    )
+    (drop_path): DropPath()
+  )
+  (10): BEiTTransformerEncoderLayer(
+    (ln1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (attn): BEiTAttention(
+      (qkv): Linear(in_features=768, out_features=2304, bias=False)
+      (attn_drop): Dropout(p=0.0, inplace=False)
+      (proj): Linear(in_features=768, out_features=768, bias=True)
+      (proj_drop): Dropout(p=0.0, inplace=False)
+    )
+    (ln2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (ffn): FFN(
+      (activate): GELU()
+      (layers): Sequential(
+        (0): Sequential(
+          (0): Linear(in_features=768, out_features=3072, bias=True)
+          (1): GELU()
+          (2): Dropout(p=0.0, inplace=False)
+        )
+        (1): Linear(in_features=3072, out_features=768, bias=True)
+        (2): Dropout(p=0.0, inplace=False)
+      )
+      (dropout_layer): Identity()
+    )
+    (drop_path): DropPath()
+  )
+  (11): BEiTTransformerEncoderLayer(
+    (ln1): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (attn): BEiTAttention(
+      (qkv): Linear(in_features=768, out_features=2304, bias=False)
+      (attn_drop): Dropout(p=0.0, inplace=False)
+      (proj): Linear(in_features=768, out_features=768, bias=True)
+      (proj_drop): Dropout(p=0.0, inplace=False)
+    )
+    (ln2): LayerNorm((768,), eps=1e-06, elementwise_affine=True)
+    (ffn): FFN(
+      (activate): GELU()
+      (layers): Sequential(
+        (0): Sequential(
+          (0): Linear(in_features=768, out_features=3072, bias=True)
+          (1): GELU()
+          (2): Dropout(p=0.0, inplace=False)
+        )
+        (1): Linear(in_features=3072, out_features=768, bias=True)
+        (2): Dropout(p=0.0, inplace=False)
+      )
+      (dropout_layer): Identity()
+    )
+    (drop_path): DropPath()
+  )
+) , self.out_indices (3, 5, 7, 11)
+
+
+
+

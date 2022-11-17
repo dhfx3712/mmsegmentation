@@ -13,7 +13,7 @@ from mmcv.runner import BaseModule, ModuleList, _load_checkpoint
 from torch.nn.modules.batchnorm import _BatchNorm
 from torch.nn.modules.utils import _pair as to_2tuple
 
-from mmseg.utils import get_root_logger
+from mmseg.utils import get_root_logger,Log_debug
 from ..builder import BACKBONES
 from ..utils import PatchEmbed
 from .vit import TransformerEncoderLayer as VisionTransformerEncoderLayer
@@ -348,6 +348,7 @@ class BEiT(BaseModule):
 
     def _build_patch_embedding(self):
         """Build patch embedding layer."""
+        Log_debug.info (f'beit_patch_embedding_build  PatchEmbed')
         self.patch_embed = PatchEmbed(
             in_channels=self.in_channels,
             embed_dims=self.embed_dims,
@@ -360,6 +361,7 @@ class BEiT(BaseModule):
 
     def _build_layers(self):
         """Build transformer encoding layers."""
+        Log_debug.info(f'beit_layer_build  BEiTTransformerEncoderLayer')
 
         dpr = [
             x.item()
@@ -530,12 +532,13 @@ class BEiT(BaseModule):
         B = inputs.shape[0]
 
         x, hw_shape = self.patch_embed(inputs)
-
+        Log_debug.info (f'beit_input : inputs {inputs.shape} ,path_out_x {x.shape} , path_out_hw {hw_shape}')
         # stole cls_tokens impl from Phil Wang, thanks
-        cls_tokens = self.cls_token.expand(B, -1, -1)
+        cls_tokens = self.cls_token.expand(B, -1, -1) #拼接batch
         x = torch.cat((cls_tokens, x), dim=1)
-
+        Log_debug.info (f'beit_expand : x {x.shape}')
         outs = []
+        Log_debug.info (f'beit :  self.out_indices {self.out_indices}')
         for i, layer in enumerate(self.layers):
             x = layer(x)
             if i == len(self.layers) - 1:
@@ -548,7 +551,7 @@ class BEiT(BaseModule):
                 out = out.reshape(B, hw_shape[0], hw_shape[1],
                                   C).permute(0, 3, 1, 2).contiguous()
                 outs.append(out)
-
+        Log_debug.info(f'beit_out : {[i.shape for i in outs]}')
         return tuple(outs)
 
     def train(self, mode=True):

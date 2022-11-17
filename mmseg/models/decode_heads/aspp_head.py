@@ -6,7 +6,7 @@ from mmcv.cnn import ConvModule
 from mmseg.ops import resize
 from ..builder import HEADS
 from .decode_head import BaseDecodeHead
-
+from mmseg.utils import Log_debug
 
 class ASPPModule(nn.ModuleList):
     """Atrous Spatial Pyramid Pooling (ASPP) Module.
@@ -103,6 +103,7 @@ class ASPPHead(BaseDecodeHead):
                 H, W) which is feature map for last layer of decoder head.
         """
         x = self._transform_inputs(inputs)
+        Log_debug.info (f'aspp : input : {len(inputs)} , {[i.shape for i in inputs]} , x : {x.shape}')
         aspp_outs = [
             resize(
                 self.image_pool(x),
@@ -110,6 +111,7 @@ class ASPPHead(BaseDecodeHead):
                 mode='bilinear',
                 align_corners=self.align_corners)
         ]
+        Log_debug.info (f'asspp_resize : {len(aspp_outs)}, {[i.shape for i in aspp_outs]}')
         aspp_outs.extend(self.aspp_modules(x))
         aspp_outs = torch.cat(aspp_outs, dim=1)
         feats = self.bottleneck(aspp_outs)

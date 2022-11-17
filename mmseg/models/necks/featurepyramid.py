@@ -3,7 +3,7 @@ import torch.nn as nn
 from mmcv.cnn import build_norm_layer
 
 from ..builder import NECKS
-
+from mmseg.utils import Log_debug
 
 @NECKS.register_module()
 class Feature2Pyramid(nn.Module):
@@ -64,4 +64,5 @@ class Feature2Pyramid(nn.Module):
             ]
         for i in range(len(inputs)):
             outputs.append(ops[i](inputs[i]))
+        Log_debug.info (f'beit_nect_out : {[i.shape for i in outputs]}')
         return tuple(outputs)

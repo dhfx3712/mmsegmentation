@@ -615,6 +615,9 @@ Log_debug = get_root_logger('./debug.log',log_level=logging.ERROR)
 
 
 cityscapes数据数
+Cityscapes数据集的深度完整解析
+https://blog.csdn.net/MVandCV/article/details/115331719
+
 (mmsegmentation) admin@bogon mmsegmentation % python tools/train.py configs/deeplabv3/deeplabv3_r50-d8_512x1024_40k_cityscapes.py
 
 mmseg/datasets/custom.py
@@ -681,6 +684,15 @@ def _list_dir_or_file(dir_path, list_dir, list_file, suffix,
 
 
 
+
+
+
+
+ADE20k数据集
+* . jpg：RGB图像。
+* _seg.png：对象分割掩码。此图像包含有关对象类分割掩码的信息，还将每个类分隔为实例。通道R和G编码对象类掩码。通道B对实例对象掩码进行编码。loadAde20K的函数。m提取两个掩模。
+* _seg_parts_N.png：零件分割掩码，其中N是一个数字(1,2,3，…)，表示零件层次结构中的级别。部件被组织在一个树中，其中对象由部件组成，部件也可以由部件组成，部件的部件也可以有部件。level N表示部件树中的深度。级别N=1对应于对象的各个部分。所有的部件分割都具有与对象分割掩码相同的编码，类在RG通道中编码，实例在B通道中编码。使用loadAde20K函数。提取部分分割掩码，并将同一类的实例分离。
+* _.txt：描述每个图像(描述对象和部件)内容的文本文件。此信息与其他文件是冗余的。但另外还包含有关对象属性的信息。loadAde20K的函数。m还解析这个文件的内容。文本文件中的每一行包含:列1=实例号，列2=部件级别(对象为0)，列3=遮挡(true为1)，列4=类名(使用wordnet解析)，列5=原始名称(可能提供更详细的分类)，列6=逗号分隔的属性列表。
 
 
 
@@ -976,6 +988,92 @@ beit : self.layers ModuleList(
     (drop_path): DropPath()
   )
 ) , self.out_indices (3, 5, 7, 11)
+
+
+
+
+train.py
+train_segmentor(model,datasets,cfg,distributed=distributed,validate=(not args.no_validate),timestamp=timestamp,meta=meta)
+    mmseg/apis/train.py
+    train_segmentor -- >构建runner
+    runner = build_runner(cfg.runner,default_args=dict(model=model,batch_processor=None,optimizer=optimizer,work_dir=cfg.work_dir,logger=logger,meta=meta))
+    runner.run(data_loaders, cfg.workflow)
+        /Users/admin/opt/anaconda3/envs/mmsegmentation/lib/python3.7/site-packages/mmcv/runner/epoch_based_runner.py-->run
+        epoch_runner = getattr(self, mode)
+        epoch_runner(data_loaders[i], **kwargs)-->如何调用train
+            outputs = self.model.train_step(data_batch, self.optimizer,**kwargs)
+            mmseg/models/segmentors/base.py-->train_step
+            losses = self(**data_batch)  **data_batch字典
+                mmseg/models/segmentors/encoder_decoder.py
+                forward_train(self, img, img_metas, gt_semantic_seg)
+            
+            
+        
+
+
+
+
+语义分割轻量网络
+1、icnet
+(mmsegmentation) admin@AdmindeMacBook-Pro-47 mmsegmentation % python tools/train.py configs/icnet/icnet_r50-d8_832x832_80k_cityscapes.py
+
+backbone
+conv_sub1 通道扩充到middle_channels，输出out_channels[0]。三次降采stride=2，缩小8倍
+ResNetV1c (初期的resnet模型，stem与conv1的功能相同)
+_make_stem_layer-->(deep_stem=True,avg_down=False) 
+layer1
+layer2
+layer3
+layer4
+
+psp_module (Pyramid Pooling Module)
+
+
+neck
+cff集联，通道数是相同的，大小可能不同。
+1、resize到相同大小。
+2、conv_low空洞卷积带空洞率，conv_high两个卷积处理，维持输入尺寸。
+3、合并
+4、relu激活
+
+第二、四层做cff24
+第一，cff24做cff 返回cff12、调整尺寸后的cff24
+
+
+decode_head
+fcn
+
+
+
+
+2、cgnet
+(mmsegmentation) admin@AdmindeMacBook-Pro-47 mmsegmentation % python tools/train.py configs/cgnet/cgnet_680x680_60k_cityscapes.py
+
+
+inject_2x=InputInjection(1)-->self.pool.append(nn.AvgPool2d(3, stride=2, padding=1))
+inject_4x=InputInjection(2) 2倍
+stage0
+stem 第一个stride=2其他stride都为1，进入的x降采一半儿
+cat(x,inject_2x) 保留了原始的输入数据的上下文信息
+
+stage1（x已经融入了stage0的信息）
+ContextGuidedBlock 4部分
+self.conv1x1 kernel大小
+self.f_loc常规卷积局部提取
+self.f_sur空洞卷积上下文提取
+cat([loc, sur], 1)拼接
+self.bottleneck 通道数将为原来一半（downsample只有i=0的时候为true）
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -6,7 +6,7 @@ from mmcv.cnn import ConvModule
 from mmseg.ops import resize
 from ..builder import HEADS
 from .decode_head import BaseDecodeHead
-
+from mmseg.utils import Log_debug
 
 class PPM(nn.ModuleList):
     """Pooling Pyramid Module used in PSPNet.
@@ -48,13 +48,15 @@ class PPM(nn.ModuleList):
     def forward(self, x):
         """Forward function."""
         ppm_outs = []
-        for ppm in self:
+        Log_debug.info(f'ppm_input : {x.shape}')
+        for index,ppm in enumerate(self):
             ppm_out = ppm(x)
             upsampled_ppm_out = resize(
                 ppm_out,
                 size=x.size()[2:],
                 mode='bilinear',
                 align_corners=self.align_corners)
+            Log_debug.info(f'ppm_out : index-{index},out {ppm_out.shape} , upsample {upsampled_ppm_out.shape}')
             ppm_outs.append(upsampled_ppm_out)
         return ppm_outs
 

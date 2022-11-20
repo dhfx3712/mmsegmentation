@@ -5,7 +5,7 @@ from mmcv.runner import BaseModule
 
 from mmseg.ops import resize
 from ..builder import NECKS
-
+from mmseg.utils import Log_debug
 
 class CascadeFeatureFusion(BaseModule):
     """Cascade Feature Fusion Unit in ICNet.
@@ -60,8 +60,9 @@ class CascadeFeatureFusion(BaseModule):
             conv_cfg=conv_cfg,
             norm_cfg=norm_cfg,
             act_cfg=act_cfg)
-
+        # Log_debug(f'neck_cff : paramer {self.__dict__}') #TypeError: EncoderDecoder: ICNeck: 'Logger' object is not callable ？？
     def forward(self, x_low, x_high):
+        Log_debug.info(f'nect_input : x_low {x_low.shape} ,x_high {x_high.shape}')
         x_low = resize(
             x_low,
             size=x_high.size()[2:],
@@ -72,6 +73,7 @@ class CascadeFeatureFusion(BaseModule):
         #  before being used for auxiliary head.
         x_low = self.conv_low(x_low)
         x_high = self.conv_high(x_high)
+        Log_debug.info(f'nect_conv_l_h : x_low {x_low.shape} ,x_high {x_high.shape}')
         x = x_low + x_high
         x = F.relu(x, inplace=True)
         return x, x_low
@@ -139,10 +141,11 @@ class ICNeck(BaseModule):
     def forward(self, inputs):
         assert len(inputs) == 3, 'Length of input feature \
                                         maps must be 3!'
-
+        Log_debug.info(f'neck_input : {[i.shape for i in inputs]}')
         x_sub1, x_sub2, x_sub4 = inputs
         x_cff_24, x_24 = self.cff_24(x_sub4, x_sub2)
         x_cff_12, x_12 = self.cff_12(x_cff_24, x_sub1)
         # Note: `x_cff_12` is used for decode_head,
         # `x_24` and `x_12` are used for auxiliary head.
+        Log_debug.info(f'neck_out :xcff12 {x_cff_12.shape} ,xcff24 {x_cff_24.shape} ,x12 {x_12.shape} ,x24 {x_24.shape}')
         return x_24, x_12, x_cff_12

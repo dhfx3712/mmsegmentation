@@ -129,7 +129,7 @@ class CustomDataset(Dataset):
         self.img_infos = self.load_annotations(self.img_dir, self.img_suffix,
                                                self.ann_dir,
                                                self.seg_map_suffix, self.split)
-        Log_debug.info(f'CustomDataset : paramer {self.__dict__} ')
+        # Log_debug.info(f'CustomDataset : paramer {self.__dict__} ')
     def __len__(self):
         """Total number of samples of data."""
         return len(self.img_infos)

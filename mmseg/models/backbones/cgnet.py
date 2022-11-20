@@ -9,7 +9,7 @@ from mmcv.runner import BaseModule
 from mmcv.utils.parrots_wrapper import _BatchNorm
 
 from ..builder import BACKBONES
-
+from mmseg.utils import Log_debug
 
 class GlobalContextExtractor(nn.Module):
     """Global Context Extractor for CGNet.
@@ -338,25 +338,31 @@ class CGNet(BaseModule):
         # stage 0
         inp_2x = self.inject_2x(x)
         inp_4x = self.inject_4x(x)
-        for layer in self.stem:
+        Log_debug.info(f'cgnet input :x {x.shape}, inj2x {inp_2x.shape}  ,inj4x {inp_4x.shape}')
+        for index,layer in enumerate(self.stem):
             x = layer(x)
+            Log_debug.info(f'cgnet_stem : index {index}, x {x.shape}')
         x = self.norm_prelu_0(torch.cat([x, inp_2x], 1))
         output.append(x)
 
         # stage 1
         for i, layer in enumerate(self.level1):
             x = layer(x)
+            Log_debug.info(f'cgnet_stage1 : index {i} ,x {x.shape}')
             if i == 0:
                 down1 = x
         x = self.norm_prelu_1(torch.cat([x, down1, inp_4x], 1))
+        Log_debug.info(f'cgnet_stage1_out : x {x.shape}')
         output.append(x)
 
         # stage 2
         for i, layer in enumerate(self.level2):
             x = layer(x)
+            Log_debug.info(f'cgnet_stage2 : index {i} ,x {x.shape}')
             if i == 0:
                 down2 = x
         x = self.norm_prelu_2(torch.cat([down2, x], 1))
+        Log_debug.info(f'cgnet_stage2_out : x {x.shape}')
         output.append(x)
 
         return output

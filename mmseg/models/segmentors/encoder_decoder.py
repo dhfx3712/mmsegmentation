@@ -140,7 +140,7 @@ class EncoderDecoder(BaseSegmentor):
         """
 
         x = self.extract_feat(img)
-        Log_debug.info (f'encode_decode : img {img.shape} ')
+        Log_debug.info (f'encode_decode : img {img.shape} ,gt_semantic_seg {gt_semantic_seg.shape} , img_metas {img_metas}')
 
         losses = dict()
 

@@ -7,7 +7,7 @@ from mmcv.runner import BaseModule
 from mmseg.ops import resize
 from ..builder import BACKBONES, build_backbone
 from ..decode_heads.psp_head import PPM
-
+from mmseg.utils import Log_debug
 
 @BACKBONES.register_module()
 class ICNet(BaseModule):
@@ -133,21 +133,27 @@ class ICNet(BaseModule):
 
     def forward(self, x):
         output = []
-
+        Log_debug.info(f'icnet_input : {x.shape}')
         # sub 1
         output.append(self.conv_sub1(x))
-
+        Log_debug.info(f'icnet_sub1 : {output[0].shape}')
         # sub 2
         x = resize(
             x,
             scale_factor=0.5,
             mode='bilinear',
             align_corners=self.align_corners)
+        Log_debug.info(f'icnet_resze : {x.shape}')
         x = self.backbone.stem(x)
+        Log_debug.info(f'icnet_backbone_stem : {x.shape}')
         x = self.backbone.maxpool(x)
+        Log_debug.info(f'icnet_backbone_maxpool : {x.shape}')
         x = self.backbone.layer1(x)
+        Log_debug.info(f'icnet_backbone_lay1 : {x.shape}')
         x = self.backbone.layer2(x)
+        Log_debug.info(f'icnet_backbone_lay2 : {x.shape}')
         output.append(self.conv_sub2(x))
+        Log_debug.info(f'icnet_sub1 : {output[1].shape}')
 
         # sub 4
         x = resize(
@@ -155,8 +161,11 @@ class ICNet(BaseModule):
             scale_factor=0.5,
             mode='bilinear',
             align_corners=self.align_corners)
+        Log_debug.info(f'icnet_resze : {x.shape}')
         x = self.backbone.layer3(x)
+        Log_debug.info(f'icnet_backbone_lay3 : {x.shape}')
         x = self.backbone.layer4(x)
+        Log_debug.info(f'icnet_backbone_lay4 : {x.shape}')
         psp_outs = self.psp_modules(x) + [x]
         psp_outs = torch.cat(psp_outs, dim=1)
         x = self.psp_bottleneck(psp_outs)
